@@ -17,12 +17,10 @@ func GetBudgetReport(c *fiber.Ctx) error {
 	userID := int(userVal.(float64))
 	month := c.QueryInt("month", 0)
 	year := c.QueryInt("year", 0)
-
 	summary, err := models.GetBudgetSummary(userID, month, year)
 	if err != nil {
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal mengambil data: "+err.Error())
 	}
-
 	return utils.ResponseSuccess(c, summary, "Laporan anggaran berhasil diambil")
 }
 func AddBudgetEntry(c *fiber.Ctx) error {
@@ -47,14 +45,11 @@ func AddBudgetEntry(c *fiber.Ctx) error {
 }
 
 func DeleteBudgetEntry(c *fiber.Ctx) error {
-	// 1. Ambil ID Item dari URL parameter (/budget/:id)
 	idParam := c.Params("id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
 		return utils.ResponseError(c, fiber.StatusBadRequest, "ID tidak valid")
 	}
-
-	// 2. Ambil ID User dari Token
 	userVal := c.Locals("user_id")
 	if userVal == nil {
 		return utils.ResponseError(c, fiber.StatusUnauthorized, "Token tidak valid")

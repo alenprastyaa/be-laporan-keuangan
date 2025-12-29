@@ -14,6 +14,7 @@ type BudgetEntry struct {
 	NamaItem  string    `json:"nama_item"`
 	Jumlah    float64   `json:"jumlah"`
 	Jenis     string    `json:"jenis"`
+	SuberDana string    `json:"sumber_dana"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -25,49 +26,38 @@ type BudgetSummary struct {
 }
 
 func CreateBudgetEntry(entry *BudgetEntry) error {
-	query := `INSERT INTO budget_entries (user_id, kategori, nama_item, jumlah, jenis) VALUES ($1, $2, $3, $4, $5) RETURNING id`
-	return config.DB.QueryRow(query, entry.UserID, entry.Kategori, entry.NamaItem, entry.Jumlah, entry.Jenis).Scan(&entry.ID)
+	query := `INSERT INTO budget_entries (user_id, kategori, nama_item, jumlah, jenis, sumber_dana) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
+	return config.DB.QueryRow(query, entry.UserID, entry.Kategori, entry.NamaItem, entry.Jumlah, entry.Jenis, entry.SuberDana).Scan(&entry.ID)
 }
 func GetBudgetSummary(userID int, month int, year int) (BudgetSummary, error) {
-	// Base Query
-	query := `SELECT id, user_id, kategori, nama_item, jumlah, jenis, created_at FROM budget_entries WHERE user_id = $1`
-
+	query := `SELECT id, user_id, kategori, nama_item, jumlah, jenis,sumber_dana, created_at FROM budget_entries WHERE user_id = $1`
 	args := []interface{}{userID}
 	paramIdx := 2
-
-	// Jika ada filter bulan dan tahun
 	if month > 0 && year > 0 {
 		query += fmt.Sprintf(" AND EXTRACT(MONTH FROM created_at) = $%d AND EXTRACT(YEAR FROM created_at) = $%d", paramIdx, paramIdx+1)
 		args = append(args, month, year)
 	}
-
-	query += ` ORDER BY created_at DESC`
-
+	query += `ORDER BY created_at DESC`
 	rows, err := config.DB.Query(query, args...)
 	if err != nil {
 		return BudgetSummary{}, err
 	}
 	defer rows.Close()
-
 	summary := BudgetSummary{
 		Detail: make(map[string][]BudgetEntry),
 	}
-
 	for rows.Next() {
 		var b BudgetEntry
-		if err := rows.Scan(&b.ID, &b.UserID, &b.Kategori, &b.NamaItem, &b.Jumlah, &b.Jenis, &b.CreatedAt); err != nil {
+		if err := rows.Scan(&b.ID, &b.UserID, &b.Kategori, &b.NamaItem, &b.Jumlah, &b.Jenis, &b.SuberDana, &b.CreatedAt); err != nil {
 			continue
 		}
-
 		summary.Detail[b.Kategori] = append(summary.Detail[b.Kategori], b)
-
 		if b.Jenis == "pemasukan" {
 			summary.TotalPemasukan += b.Jumlah
 		} else {
 			summary.TotalPengeluaran += b.Jumlah
 		}
 	}
-
 	summary.SisaAnggaran = summary.TotalPemasukan - summary.TotalPengeluaran
 	return summary, nil
 }
